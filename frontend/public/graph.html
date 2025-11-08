@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EcuPlot – Graficadora</title>
+    <script>
+      (function () {
+        var key = 'ecup-theme';
+        var pref = 'system';
+        try {
+          pref = localStorage.getItem(key) || 'system';
+        } catch (err) {}
+        var isDark = false;
+        if (pref === 'dark') {
+          isDark = true;
+        } else if (pref === 'system') {
+          try {
+            var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+            isDark = !!(mq && mq.matches);
+          } catch (err2) {}
+        }
+        var resolved = isDark ? 'dark' : 'light';
+        var root = document.documentElement;
+        root.classList.add('theme-' + resolved);
+        root.dataset.theme = resolved;
+        root.dataset.themePreference = pref;
+      })();
+    </script>
+  <link rel="stylesheet" href="/static/base.css" />
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/pages.css" />
+
+  </head>
+  <body class="page page--graph">
+    <div class="graph-shell">
+      <!-- Header compacto -->
+      <header class="graph-header" role="banner" aria-label="Cabecera">
+        <a class="btn btn--ghost graph-header__back" href="/" aria-label="Volver al inicio">← Volver</a>
+        <div class="graph-header__title">Graficadora</div>
+        <div class="graph-header__spacer"></div>
+      </header>
+
+      <!-- Contenido principal -->
+      <div class="graph-main">
+        <section class="stage" aria-label="Área de graficación">
+          <div class="stage__canvas">
+            <div id="functions-panel" class="functions-panel" aria-label="Panel de funciones">
+              <header class="functions-panel__header">
+                <div>
+                  <p class="functions-panel__eyebrow">Funciones</p>
+                  <h2 class="functions-panel__title">Mis expresiones</h2>
+                </div>
+                <button id="close-functions" class="btn btn--icon" type="button" aria-label="Ocultar panel">
+                  <span class="btn__icon" aria-hidden="true">
+                    <img class="btn__icon-img btn__icon-img--light" src="/static/images/closeclaro.png" alt="" decoding="async" />
+                    <img class="btn__icon-img btn__icon-img--dark" src="/static/images/closeoscuro.png" alt="" decoding="async" />
+                  </span>
+                </button>
+              </header>
+              <div class="functions-panel__body">
+                <div class="functions-panel__tabs" role="tablist" aria-label="Contenido del panel">
+                  <button
+                    id="functions-panel-tab-functions"
+                    class="btn btn--ghost btn--sm functions-panel__tab is-active"
+                    type="button"
+                    aria-controls="functions-panel-functions"
+                    aria-pressed="true"
+                    data-tab="functions"
+                  >Funciones</button>
+                  <button
+                    id="functions-panel-tab-history"
+                    class="btn btn--ghost btn--sm functions-panel__tab"
+                    type="button"
+                    aria-controls="functions-panel-history"
+                    aria-pressed="false"
+                    data-tab="history"
+                  >Historial</button>
+                </div>
+
+                <div id="functions-panel-functions" class="functions-panel__section" data-panel="functions">
+                  <div class="sidebar__header">Funciones</div>
+                  <div id="expr-list" class="sidebar__list" aria-live="polite" aria-atomic="true"></div>
+                </div>
+
+                <div
+                  id="functions-panel-history"
+                  class="functions-panel__section"
+                  data-panel="history"
+                  role="region"
+                  aria-live="polite"
+                  hidden
+                >
+                  <div class="form__field">
+                    <label class="form__label" for="history-search-inline">Buscar</label>
+                    <input
+                      class="form__input history-search-input js-history-search"
+                      id="history-search-inline"
+                      type="text"
+                      placeholder="filtrar por texto..."
+                    />
+                  </div>
+
+                  <div class="form__field functions-panel__history-selectall">
+                    <input id="history-select-all-inline" class="js-history-select-all" type="checkbox" />
+                    <label for="history-select-all-inline">Seleccionar todo</label>
+                    <button id="history-panel-refresh" class="btn btn--ghost btn--sm" type="button">Actualizar</button>
+                  </div>
+
+                  <div class="history__list js-history-list" role="list" aria-live="polite"></div>
+
+                  <div class="form__actions functions-panel__history-actions">
+                    <button class="btn btn--primary js-history-plot-selected" type="button">Graficar seleccionadas</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              id="learning-panel"
+              class="learning-panel"
+              role="region"
+              aria-label="Ejercicios sugeridos"
+              hidden
+              tabindex="-1"
+            >
+              <header class="learning-panel__header">
+                <div>
+                  <p class="learning-panel__eyebrow">Aprendizaje</p>
+                  <h3 class="learning-panel__title">Ejercicios sugeridos</h3>
+                </div>
+                <button id="close-learning" class="btn btn--icon" type="button" aria-label="Ocultar ejercicios">
+                  <span class="btn__icon" aria-hidden="true">
+                    <img class="btn__icon-img btn__icon-img--light" src="/static/images/closeclaro.png" alt="" decoding="async" />
+                    <img class="btn__icon-img btn__icon-img--dark" src="/static/images/closeoscuro.png" alt="" decoding="async" />
+                  </span>
+                </button>
+              </header>
+              <div class="learning-panel__body">
+                <p class="learning-panel__hint">Carga ejemplos listos y marca tu progreso visualmente.</p>
+                <ul id="learning-exercise-list" class="learning-list" role="list" aria-live="polite"></ul>
+                <p id="learning-tooltip" class="learning-tooltip" hidden></p>
+              </div>
+            </div>
+
+            <div class="graph-floating-actions" role="toolbar" aria-label="Controles de paneles">
+              <button id="toggle-functions" class="btn btn--ghost btn--sm" type="button" aria-pressed="true">Ocultar funciones</button>
+              <button id="toggle-learning" class="btn btn--ghost btn--sm" type="button" aria-pressed="false">Ejercicios</button>
+              <button id="toggle-values" class="btn btn--ghost btn--sm" type="button" aria-pressed="false">Mostrar tabla</button>
+            </div>
+
+            <div id="value-panel" class="value-panel" hidden aria-live="polite" aria-label="Tabla de valores capturados">
+              <header class="value-panel__header">
+                <div>
+                  <p class="value-panel__eyebrow">Datos precisos</p>
+                  <h3 class="value-panel__title">Tabla de valores</h3>
+                </div>
+                <div class="value-panel__actions">
+                  <button id="clear-values" class="btn btn--ghost btn--sm" type="button">Limpiar</button>
+                  <button id="close-values" class="btn btn--icon" type="button" aria-label="Ocultar tabla">
+                    <span class="btn__icon" aria-hidden="true">
+                      <img class="btn__icon-img btn__icon-img--light" src="/static/images/closeclaro.png" alt="" decoding="async" />
+                      <img class="btn__icon-img btn__icon-img--dark" src="/static/images/closeoscuro.png" alt="" decoding="async" />
+                    </span>
+                  </button>
+                </div>
+              </header>
+              <div class="value-panel__body">
+                <table class="value-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Función</th>
+                      <th scope="col">x</th>
+                      <th scope="col">y</th>
+                      <th scope="col">Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody id="value-table-body"></tbody>
+                </table>
+                <p id="value-table-empty" class="value-panel__empty">Haz clic sobre una curva para registrar valores.</p>
+              </div>
+            </div>
+
+            <div id="ggb-container" aria-label="Lienzo de graficación">
+              <div id="coord-hud" class="coord-hud" hidden>(x, y)</div>
+            </div>
+          </div>
+          <div class="controls-bar" role="group" aria-label="Acciones de graficación">
+            <form id="plot-form" class="controls-bar__form" autocomplete="off" aria-describedby="plotter-hint">
+              <label class="sr-only" for="plot-input">Expresión</label>
+              <input
+                class="controls-bar__input"
+                id="plot-input"
+                name="expr"
+                type="text"
+                placeholder="y = sin(x)"
+                inputmode="text"
+                spellcheck="false"
+                autocomplete="off"
+              />
+              <p id="plotter-hint" class="sr-only">Tip: Ctrl + Enter para graficar rápidamente, G alterna la cuadrícula, Ctrl + Shift + E exporta en PNG y Ctrl + Shift + S exporta en SVG.</p>
+              <div class="controls-bar__actions">
+                <div class="controls-bar__primary">
+                  <button class="btn btn--primary controls-bar__submit" type="submit">Graficar</button>
+                  <button
+                    id="controls-actions-toggle"
+                    class="btn btn--ghost controls-bar__toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="controls-secondary"
+                  >
+                    Opciones
+                    <span class="controls-bar__toggle-icon" aria-hidden="true"></span>
+                  </button>
+                </div>
+                <div id="controls-secondary" class="controls-bar__secondary" aria-label="Acciones adicionales">
+                  <div class="controls-bar__row controls-bar__row--two">
+                    <button id="btn-clear" class="btn btn--ghost" type="button">Limpiar</button>
+                    <button id="btn-history" class="btn btn--ghost" type="button">Historial</button>
+                  </div>
+                  <div class="controls-bar__row controls-bar__row--three">
+                    <button id="btn-export-svg" class="btn btn--ghost" type="button">Exportar SVG</button>
+                    <button id="btn-export" class="btn btn--ghost" type="button">Exportar PNG</button>
+                    <button id="btn-grid" class="btn btn--ghost" type="button" aria-pressed="true">Cuadrícula: ON</button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <button
+            id="controls-bar-toggle"
+            class="controls-bar__fab btn btn--icon btn--icon-only"
+            type="button"
+            aria-pressed="true"
+            aria-label="Ocultar barra de controles"
+          >
+            <span class="controls-bar__fab-icon" aria-hidden="true">-</span>
+          </button>
+        </section>
+      </div>
+    </div>
+
+    <!-- Modal: Historial-->
+    <div id="modal-history" class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title" aria-hidden="true">
+      <div class="modal__overlay" data-close="history" tabindex="-1" aria-hidden="true"></div>
+      <div class="modal__dialog" role="document" tabindex="-1">
+        <header class="modal__header">
+          <h2 id="history-title" class="modal__title">Historial</h2>
+          <button class="modal__close btn btn--icon" type="button" data-close="history" aria-label="Cerrar">
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/closeclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/closeoscuro.png" alt="" decoding="async" />
+            </span>
+          </button>
+        </header>
+
+        <div class="modal__body modal__body--history">
+          <div class="form__field">
+            <label class="form__label" for="history-search">Buscar</label>
+            <input class="form__input history-search-input js-history-search" id="history-search" type="text" placeholder="filtrar por texto..." />
+          </div>
+
+          <div class="form__field" style="display:flex;align-items:center;gap:.5rem;">
+            <input id="history-select-all" class="js-history-select-all" type="checkbox" />
+            <label for="history-select-all">Seleccionar todo</label>
+          </div>
+
+          <div id="history-list" class="history__list js-history-list" role="list"></div>
+
+          <div class="form__actions" style="justify-content:flex-end;">
+            <button id="history-plot-selected" class="btn btn--primary js-history-plot-selected" type="button">Graficar seleccionadas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toasts para mensajes -->
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.0/lib/browser/math.js"></script>
+<script src="/static/plotter.js" type="module"></script>
+<script src="/static/graph-page.js" type="module"></script>
+  </body>
+</html>

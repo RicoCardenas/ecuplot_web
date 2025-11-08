@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi Cuenta - EcuPlot</title>
+    <meta name="description" content="Panel de usuario para gestionar tu cuenta y ver tu historial en EcuPlot." />
+    <link rel="icon" href="/static/images/logo.jpg" type="image/jpeg" />
+    <script>
+      (function () {
+        var key = 'ecup-theme';
+        var pref = 'system';
+        try {
+          pref = localStorage.getItem(key) || 'system';
+        } catch (err) {}
+        var isDark = false;
+        if (pref === 'dark') {
+          isDark = true;
+        } else if (pref === 'system') {
+          try {
+            var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+            isDark = !!(mq && mq.matches);
+          } catch (err2) {}
+        }
+        var resolved = isDark ? 'dark' : 'light';
+        var root = document.documentElement;
+        root.classList.add('theme-' + resolved);
+        root.dataset.theme = resolved;
+        root.dataset.themePreference = pref;
+      })();
+    </script>
+    <link rel="stylesheet" href="/static/base.css" />
+    <link rel="stylesheet" href="/static/components.css" />
+    <link rel="stylesheet" href="/static/pages.css" />
+  </head>
+
+  <body class="page page--account">
+    <header id="site-header" class="header" role="banner" aria-label="Cabecera del sitio">
+      <div class="header__inner">
+        <div class="header__brand">
+          <a href="/" class="header__logo" aria-label="Ir al inicio">
+            <img
+              src="/static/images/logo.jpg"
+              alt="EcuPlot logo"
+              class="header__logo-img img-responsive"
+              decoding="async"
+            />
+            <span class="header__logo-text">EcuPlot</span>
+          </a>
+        </div>
+        <nav id="primary-nav" class="nav header__nav" aria-label="Navegación principal">
+          <ul class="nav__list" role="list">
+            <li class="nav__item"><a class="nav__link" href="/" aria-current="page">Inicio</a></li>
+            <li class="nav__item"><a class="nav__link" href="/graph">Graficadora</a></li>
+          </ul>
+        </nav>
+        <div class="header__actions">
+          <a
+            class="btn btn--ghost header__btn btn--has-icon btn--icon-only"
+            href="/login"
+            data-auth-link="login"
+            aria-label="Iniciar sesión"
+          >
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/loginclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/loginoscuro.png" alt="" decoding="async" />
+            </span>
+          </a>
+          <a
+            class="btn btn--primary header__btn btn--has-icon btn--icon-only"
+            href="/signup"
+            data-auth-link="signup"
+            aria-label="Crear cuenta"
+          >
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/signinclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/signinoscuro.png" alt="" decoding="async" />
+            </span>
+          </a>
+          <button
+            id="btn-logout"
+            class="btn header__btn header__btn--logout btn--has-icon btn--icon-only"
+            type="button"
+            aria-label="Cerrar sesión"
+            style="display:none"
+          >
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/logoutclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/logoutoscuro.png" alt="" decoding="async" />
+            </span>
+          </button>
+          <div class="theme-switcher" data-theme-switcher>
+            <button
+              class="btn btn--icon header__btn"
+              type="button"
+              data-theme-menu-trigger
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="theme-menu-account"
+              aria-label="Cambiar tema"
+            >
+              <img class="icon icon--theme icon--theme-light" src="/static/images/luna.png" alt="" decoding="async" />
+              <img class="icon icon--theme icon--theme-dark" src="/static/images/sol.png" alt="" decoding="async" />
+            </button>
+            <div id="theme-menu-account" class="theme-menu" role="menu" hidden data-theme-menu>
+              <button type="button" class="theme-menu__option" data-theme-option="light" role="menuitemradio" aria-checked="false">Claro</button>
+              <button type="button" class="theme-menu__option" data-theme-option="dark" role="menuitemradio" aria-checked="false">Oscuro</button>
+              <button type="button" class="theme-menu__option" data-theme-option="system" role="menuitemradio" aria-checked="false">Sistema</button>
+            </div>
+          </div>
+          <button
+            class="btn btn--icon header__btn header__btn--menu"
+            type="button"
+            aria-label="Abrir menú"
+            aria-controls="mobile-drawer"
+            aria-expanded="false"
+            data-drawer-toggle
+          >
+            <img class="icon icon--menu icon--menu-light" src="/static/images/hamburgblack.png" alt="" decoding="async" />
+            <img class="icon icon--menu icon--menu-dark" src="/static/images/hamburgwhite.png" alt="" decoding="async" />
+          </button>
+        </div>
+
+        <!-- Navegación primaria -->
+      </div>
+    </header>
+
+    <aside id="mobile-drawer" class="drawer" aria-hidden="true" aria-labelledby="mobile-drawer-title" role="dialog">
+      <div class="drawer__overlay" data-drawer-toggle tabindex="-1" aria-hidden="true"></div>
+      <div class="drawer__panel" role="document">
+        <div class="drawer__header">
+          <h2 id="mobile-drawer-title" class="drawer__title">Menú</h2>
+          <button class="drawer__close btn btn--icon" type="button" data-drawer-toggle aria-label="Cerrar menú">
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/closeclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/closeoscuro.png" alt="" decoding="async" />
+            </span>
+          </button>
+        </div>
+        <nav class="drawer__nav" aria-label="Navegación móvil">
+          <ul class="drawer__list" role="list">
+            <li class="drawer__item"><a class="drawer__link" href="/#hero">Inicio</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/#about">Acerca de</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/#learn" data-learn-alias="como-funciona">Cómo funciona</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/#learn" data-learn-alias="documentacion">Documentación</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/graph">Graficadora</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/account" aria-current="page">Mi cuenta</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/#contact">Contacto</a></li>
+          </ul>
+          <div class="drawer__actions">
+            <a class="btn btn--ghost drawer__btn" href="/login" data-auth-link="login">Iniciar sesión</a>
+            <a class="btn btn--primary drawer__btn" href="/signup" data-auth-link="signup">Crear cuenta</a>
+          </div>
+        </nav>
+      </div>
+    </aside>
+
+    <main class="account-main">
+      <div id="account-authenticated" class="account-shell">
+        <header class="account-hero">
+          <div class="account-hero__inner container">
+            <div class="account-hero__copy">
+              <p class="account-hero__eyebrow">Panel personal</p>
+              <h1 class="account-hero__title">Mi Cuenta</h1>
+              <p class="account-hero__subtitle">Consulta tus datos de perfil y el historial de gráficas que has guardado.</p>
+            </div>
+            <div class="account-hero__actions">
+              <a href="/" class="btn btn--ghost btn--sm">Ir al inicio</a>
+              <a href="/graph" class="btn btn--primary btn--sm">Abrir graficadora</a>
+              <button type="button" class="btn btn--ghost btn--sm" id="dashboard-customize">Personalizar panel</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="account-shell__inner container">
+          <div class="account-layout">
+            <section class="account-card account-card--info" id="account-details-box">
+            <div class="account-card__body">
+              <div class="account-user">
+                <div class="account-user__avatar" id="user-avatar" aria-hidden="true">EC</div>
+                <div>
+                  <p class="account-user__label">Usuario autenticado</p>
+                  <p class="account-user__name" id="user-name">Cargando...</p>
+                  <div class="account-user__meta">
+                    <ul class="account-user__roles" id="user-role-list" role="list" aria-label="Roles del usuario"></ul>
+                    <span class="account-user__email" id="user-email">Cargando...</span>
+                  </div>
+                </div>
+              </div>
+
+              <dl class="account-stats">
+                <div>
+                  <dt>ID</dt>
+                  <dd id="user-visible-id">—</dd>
+                </div>
+                <div id="user-internal-id-row" hidden>
+                  <dt>UUID</dt>
+                  <dd id="user-internal-id">—</dd>
+                </div>
+                <div>
+                  <dt>Miembro desde</dt>
+                  <dd id="user-created-at">Cargando...</dd>
+                </div>
+                <div>
+                  <dt>Estado</dt>
+                  <dd id="user-status">Cargando...</dd>
+                </div>
+                <div>
+                  <dt>Historial guardado</dt>
+                  <dd id="history-count">—</dd>
+                </div>
+              </dl>
+
+              <div class="account-request" id="admin-request-box" hidden>
+                <div class="account-request__copy">
+                  <h3 class="account-request__title">Solicitar rol administrador</h3>
+                  <p class="account-request__text">Pide acceso de administrador para gestionar usuarios, grupos y respaldos. Enviaremos la petición al equipo para su revisión.</p>
+                </div>
+                <div class="account-request__actions">
+                  <button class="btn btn--primary btn--sm" type="button" id="btn-request-admin">Solicitar rol de administrador</button>
+                </div>
+                <p class="account-request__status" id="admin-request-status" role="status" aria-live="polite" hidden></p>
+              </div>
+            </div>
+
+            <div class="account-card__footer">
+              <a class="btn btn--ghost btn--sm" href="/login">Cambiar de cuenta</a>
+              <button class="btn btn--primary btn--sm" type="button" id="account-history-cta">Ver historial</button>
+            </div>
+            </section>
+
+            <section class="account-card account-card--history" id="account-history-box" data-history-open="false">
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Seguimiento</p>
+                <h2 class="account-card__title">Mi Historial de Gráficas</h2>
+                <p class="account-card__subtitle">Revisa tus últimas funciones guardadas. El panel permanece oculto hasta que lo necesites.</p>
+              </div>
+              <div class="account-card__actions">
+                <button id="history-toggle" class="btn btn--ghost btn--sm" type="button" aria-expanded="false" aria-controls="history-panel">Mostrar historial</button>
+              </div>
+            </div>
+
+            <div class="account-card__body account-history__body">
+              <div id="history-collapsed" class="account-history__collapsed" aria-hidden="true" hidden>
+                <span class="account-history__icon" aria-hidden="true"></span>
+                <p>Historial oculto. Usa “Mostrar historial” para consultarlo cuando lo necesites.</p>
+              </div>
+              <div id="history-panel" class="account-history__panel" hidden>
+                <div class="account-history__filters">
+                  <form id="history-filters" class="history-filters" novalidate>
+                    <div class="history-filters__row">
+                      <div class="history-filters__field">
+                        <label for="history-search">Buscar</label>
+                        <input type="search" id="history-search" name="q" placeholder="Expresión o etiqueta" autocomplete="off" />
+                      </div>
+                      <div class="history-filters__field">
+                        <label for="history-from">Desde</label>
+                        <input type="date" id="history-from" name="from" />
+                      </div>
+                      <div class="history-filters__field">
+                        <label for="history-to">Hasta</label>
+                        <input type="date" id="history-to" name="to" />
+                      </div>
+                      <div class="history-filters__field">
+                        <label for="history-tags">Etiquetas</label>
+                        <input type="text" id="history-tags" name="tags" placeholder="ej. algebra, trigonometria" autocomplete="off" />
+                      </div>
+                      <div class="history-filters__field">
+                        <label for="history-order">Orden</label>
+                        <select id="history-order" name="order" class="form__input form__input--select">
+                          <option value="desc" selected>Recientes primero</option>
+                          <option value="asc">Antiguos primero</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="history-filters__actions">
+                      <div class="history-filters__buttons">
+                        <button type="submit" class="btn btn--primary btn--sm">Aplicar</button>
+                        <button type="reset" class="btn btn--ghost btn--sm">Limpiar</button>
+                      </div>
+                      <div class="history-filters__exports">
+                        <button type="button" class="btn btn--ghost btn--sm" data-history-export="csv">Exportar CSV</button>
+                        <button type="button" class="btn btn--ghost btn--sm" data-history-export="json">Exportar JSON</button>
+                      </div>
+                    </div>
+                  </form>
+                  <p id="history-error" class="account-history__error" role="alert" hidden></p>
+                </div>
+                <div id="history-loading" class="account-history__loading">
+                  <p>Cargando historial...</p>
+                </div>
+                <div id="history-empty" class="account-history__empty" hidden>
+                  <span class="account-history__icon" aria-hidden="true"></span>
+                  <p>No encontramos registros para los filtros actuales.</p>
+                  <a href="/graph" class="btn btn--primary btn--sm">Ir al Graficador</a>
+                </div>
+                <ul id="plot-history-list" class="history-list" role="list"></ul>
+                <nav id="history-pagination" class="history-pagination" aria-label="Paginación del historial" hidden>
+                  <button type="button" class="btn btn--ghost btn--sm" id="history-prev">Anterior</button>
+                  <span id="history-page-info" aria-live="polite">Página 1 de 1</span>
+                  <button type="button" class="btn btn--ghost btn--sm" id="history-next">Siguiente</button>
+                </nav>
+              </div>
+            </div>
+            </section>
+            <section class="account-card account-card--notifications" id="account-notifications-box">
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Notificaciones</p>
+                <h2 class="account-card__title">Centro de notificaciones</h2>
+                <p class="account-card__subtitle">Recibe cambios en solicitudes, seguridad y recordatorios en tiempo real.</p>
+              </div>
+              <div class="account-card__actions">
+                <button id="notifications-refresh" class="btn btn--ghost btn--sm" type="button">Actualizar</button>
+                <button id="notifications-mark-all" class="btn btn--ghost btn--sm" type="button">Marcar todo leído</button>
+              </div>
+            </div>
+            <div class="account-card__body account-notifications__body">
+              <p id="notifications-unread" class="account-card__hint" aria-live="polite">Cargando notificaciones…</p>
+              <div class="account-notifications__controls">
+                <div class="account-notifications__select">
+                  <label class="form__label" for="notifications-category">Categoría</label>
+                  <select id="notifications-category" class="form__input form__input--select">
+                    <option value="">Todas</option>
+                  </select>
+                </div>
+                <label class="form__checkbox" for="notifications-include-read">
+                  <input type="checkbox" id="notifications-include-read" />
+                  <span>Incluir leídas</span>
+                </label>
+              </div>
+              <ul id="notifications-list" class="notifications-list" role="list" aria-live="polite"></ul>
+              <p id="notifications-empty" class="account-card__empty" hidden>No tienes notificaciones por ahora.</p>
+              <div class="notifications-preferences">
+                <button id="notifications-prefs-toggle" class="btn btn--ghost btn--sm" type="button" aria-expanded="false" aria-controls="notifications-preferences-form">Preferencias</button>
+                <form id="notifications-preferences-form" class="notifications-preferences__form" hidden novalidate>
+                  <fieldset>
+                    <legend>Elige qué recibir</legend>
+                    <div id="notifications-preferences-fields" class="notifications-preferences__grid"></div>
+                    <div class="notifications-preferences__actions">
+                      <button type="submit" class="btn btn--primary btn--sm">Guardar</button>
+                      <button type="button" class="btn btn--ghost btn--sm" data-notifications-cancel>Cancelar</button>
+                    </div>
+                  </fieldset>
+                </form>
+              </div>
+              <nav id="notifications-pagination" class="notifications-pagination" aria-label="Paginación de notificaciones" hidden>
+                <button type="button" class="btn btn--ghost btn--sm" id="notifications-prev">Anterior</button>
+                <span id="notifications-page-info" aria-live="polite">Página 1 de 1</span>
+                <button type="button" class="btn btn--ghost btn--sm" id="notifications-next">Siguiente</button>
+              </nav>
+            </div>
+            </section>
+            <section class="account-card account-card--learning" id="account-learning-box">
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Aprendizaje</p>
+                <h2 class="account-card__title">Progreso en ejercicios</h2>
+                <p class="account-card__subtitle">Sigue los ejercicios sugeridos y completa tu lista interactiva.</p>
+              </div>
+              <div class="account-card__actions">
+                <button id="learning-open-graph" class="btn btn--ghost btn--sm" type="button">Abrir graficadora</button>
+              </div>
+            </div>
+            <div class="account-card__body account-learning__body">
+              <ul id="learning-progress-list" class="learning-progress" role="list" aria-live="polite"></ul>
+              <p id="learning-progress-empty" class="account-card__empty" hidden>No has completado ejercicios todavía.</p>
+            </div>
+            </section>
+            <section class="account-card account-card--tickets" id="account-tickets-box">
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Soporte</p>
+                <h2 class="account-card__title">Mis solicitudes</h2>
+                <p class="account-card__subtitle">Envía solicitudes de soporte o cambios de rol y consulta su estado.</p>
+              </div>
+            </div>
+            <div class="account-card__body account-tickets__body">
+              <form id="ticket-form" class="ticket-form" novalidate>
+                <div class="ticket-form__fields">
+                  <div class="ticket-form__field">
+                    <label class="form__label" for="ticket-type">Tipo</label>
+                    <select id="ticket-type" class="form__input">
+                      <option value="soporte">Soporte</option>
+                      <option value="rol">Solicitud de rol</option>
+                      <option value="consulta">Consulta</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </div>
+                  <div class="ticket-form__field">
+                    <label class="form__label" for="ticket-title">Título</label>
+                    <input id="ticket-title" class="form__input" type="text" maxlength="120" placeholder="Breve resumen" required />
+                  </div>
+                </div>
+                <div class="ticket-form__field">
+                  <label class="form__label" for="ticket-description">Descripción</label>
+                  <textarea id="ticket-description" class="form__input" rows="3" placeholder="Describe lo que necesitas" required></textarea>
+                </div>
+                <div class="ticket-form__actions">
+                  <button id="ticket-submit" class="btn btn--primary btn--sm" type="submit">Enviar solicitud</button>
+                </div>
+              </form>
+              <p id="ticket-feedback" class="account-tickets__feedback" aria-live="polite" hidden></p>
+              <div id="tickets-empty" class="account-tickets__empty" hidden>
+                <p>No has enviado solicitudes todavía.</p>
+                <p class="account-card__hint">Usa el formulario para contarnos qué necesitas.</p>
+              </div>
+              <ul id="tickets-list" class="tickets-list" role="list"></ul>
+              <nav id="tickets-pagination" class="tickets-pagination" aria-label="Paginación de solicitudes" hidden>
+                <button type="button" class="btn btn--ghost btn--sm" id="tickets-prev">Anterior</button>
+                <span id="tickets-page-info" aria-live="polite">Página 1 de 1</span>
+                <button type="button" class="btn btn--ghost btn--sm" id="tickets-next">Siguiente</button>
+              </nav>
+            </div>
+            </section>
+            <section class="account-card account-card--security" id="account-2fa-box">
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Seguridad</p>
+                <h2 class="account-card__title">Autenticación en dos pasos</h2>
+                <p class="account-card__subtitle">Protege tu cuenta generando códigos temporales desde tu dispositivo móvil.</p>
+              </div>
+            </div>
+            <div class="account-card__body account-2fa__body">
+              <div class="account-security__summary" id="security-summary">
+                <h3 class="account-card__subtitle">Resumen de seguridad</h3>
+                <dl class="security-summary">
+                  <div>
+                    <dt>Último inicio de sesión</dt>
+                    <dd id="security-last-login">Cargando...</dd>
+                  </div>
+                  <div>
+                    <dt>Intentos fallidos (24h)</dt>
+                    <dd id="security-failed-attempts">—</dd>
+                  </div>
+                  <div>
+                    <dt>Bloqueos recientes</dt>
+                    <dd id="security-lockouts">—</dd>
+                  </div>
+                  <div>
+                    <dt>Sesiones activas</dt>
+                    <dd id="security-active-sessions">—</dd>
+                  </div>
+                </dl>
+                <div class="security-summary__recommendations">
+                  <h4 class="account-card__subtitle account-card__subtitle--small">Recomendaciones</h4>
+                  <ul id="security-recommendations" class="security-recommendations" aria-live="polite"></ul>
+                </div>
+                <button id="security-refresh" class="btn btn--ghost btn--sm" type="button">Actualizar seguridad</button>
+              </div>
+              <p id="twofa-status" class="account-2fa__status">Autenticación en dos pasos desactivada</p>
+              <button id="twofa-setup" class="btn btn--primary btn--sm" type="button">Activar 2FA</button>
+
+              <div id="twofa-setup-panel" class="account-2fa__panel" hidden>
+                <div class="account-2fa__qr">
+                  <img id="twofa-qr" src="" alt="Código QR para configurar autenticación en dos pasos" hidden />
+                </div>
+                <p class="account-card__hint">Escanea el código con tu aplicación de autenticación o ingresa esta clave manualmente:</p>
+                <code id="twofa-secret" class="account-2fa__secret"></code>
+                <form id="twofa-verify-form" class="account-2fa__form" novalidate>
+                  <label class="form__label" for="twofa-verify-code">Código de verificación</label>
+                  <input class="form__input" id="twofa-verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required />
+                  <div class="account-2fa__form-actions">
+                    <button id="twofa-verify-submit" class="btn btn--primary btn--sm" type="submit">Verificar y activar</button>
+                  </div>
+                </form>
+              </div>
+
+              <div id="twofa-enabled-actions" class="account-2fa__actions" hidden>
+                <div class="account-2fa__buttons">
+                  <button id="twofa-show-disable" class="btn btn--ghost btn--sm" type="button">Desactivar 2FA</button>
+                  <button id="twofa-show-regenerate" class="btn btn--ghost btn--sm" type="button">Regenerar códigos</button>
+                </div>
+                <form id="twofa-disable-form" class="account-2fa__form" novalidate hidden>
+                  <label class="form__label" for="twofa-disable-code">Código actual</label>
+                  <input class="form__input" id="twofa-disable-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required />
+                  <div class="account-2fa__form-actions">
+                    <button class="btn btn--primary btn--sm" id="twofa-disable-submit" type="submit">Desactivar</button>
+                    <button class="btn btn--ghost btn--sm" data-twofa-cancel type="button">Cancelar</button>
+                  </div>
+                </form>
+                <form id="twofa-regenerate-form" class="account-2fa__form" novalidate hidden>
+                  <label class="form__label" for="twofa-regenerate-code">Código actual</label>
+                  <input class="form__input" id="twofa-regenerate-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required />
+                  <div class="account-2fa__form-actions">
+                    <button class="btn btn--primary btn--sm" id="twofa-regenerate-submit" type="submit">Regenerar</button>
+                    <button class="btn btn--ghost btn--sm" data-twofa-cancel type="button">Cancelar</button>
+                  </div>
+                </form>
+              </div>
+
+              <div id="twofa-backup-codes" class="account-2fa__codes" hidden>
+                <p>Guarda estos códigos en un lugar seguro. Cada uno puede usarse una sola vez cuando no tengas acceso a tu aplicación 2FA.</p>
+                <ul id="twofa-codes-list" class="account-2fa__codes-list"></ul>
+              </div>
+
+              <p id="twofa-feedback" class="account-2fa__feedback" aria-live="polite" hidden></p>
+            </div>
+            </section>
+          </div>
+
+          <div class="account-panels">
+            <section id="teacher-panel" class="account-card account-card--role" hidden>
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Gestión docente</p>
+                <h2 class="account-card__title">Mis grupos</h2>
+                <p class="account-card__subtitle">Crea grupos y agrega estudiantes utilizando su ID.</p>
+              </div>
+              <div class="account-card__actions">
+                <button id="teacher-create-group" class="btn btn--primary btn--sm" type="button">Crear grupo</button>
+              </div>
+            </div>
+            <div class="account-card__body">
+              <p id="teacher-groups-empty" class="account-card__empty">Aún no has creado grupos.</p>
+              <div id="teacher-group-list" class="role-panel__list"></div>
+            </div>
+            </section>
+
+            <section id="admin-panel" class="account-card account-card--role" hidden>
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Panel administrador</p>
+                <h2 class="account-card__title">Usuarios del sistema</h2>
+                <p class="account-card__subtitle">Consulta el listado de docentes y promueve nuevos usuarios.</p>
+              </div>
+            </div>
+            <div class="account-card__body admin-panel__body">
+              <div class="admin-stats" id="admin-stats" hidden>
+                <article class="admin-stat" aria-live="polite">
+                  <h3 class="admin-stat__title">Usuarios</h3>
+                  <p class="admin-stat__value" id="admin-stats-users-total">—</p>
+                  <p class="admin-stat__meta">Activos 7 días: <span id="admin-stats-users-active">—</span></p>
+                  <ul class="admin-stat__list" id="admin-stats-users-roles" aria-label="Usuarios por rol">
+                    <li>Sin datos disponibles</li>
+                  </ul>
+                </article>
+                <article class="admin-stat" aria-live="polite">
+                  <h3 class="admin-stat__title">Solicitudes</h3>
+                  <p class="admin-stat__value" id="admin-stats-requests-open">—</p>
+                  <p class="admin-stat__meta">Pendientes: <span id="admin-stats-requests-pending">—</span></p>
+                  <p class="admin-stat__meta">Atendidas: <span id="admin-stats-requests-resolved">—</span></p>
+                </article>
+                <article class="admin-stat" aria-live="polite">
+                  <h3 class="admin-stat__title">Gráficas</h3>
+                  <p class="admin-stat__value" id="admin-stats-plots-total">—</p>
+                  <p class="admin-stat__meta">Hoy: <span id="admin-stats-plots-today">—</span></p>
+                  <p class="admin-stat__meta">Últimos 7 días: <span id="admin-stats-plots-week">—</span></p>
+                </article>
+              </div>
+              <div class="admin-panel__layout">
+                <form id="admin-assign-teacher-form" class="role-form role-form--inline admin-panel__card" novalidate>
+                  <div class="form__field">
+                    <label class="form__label" for="admin-assign-user-id">UUID</label>
+                    <input class="form__input" type="text" id="admin-assign-user-id" autocomplete="off" placeholder="Ej. 123e4567-e89b-12d3-a456-426614174000" />
+                    <p class="form__hint">Ingresa el identificador único del usuario al que deseas otorgar el rol docente.</p>
+                  </div>
+                  <div class="form__field">
+                    <label class="form__label" for="admin-assign-visible-id">ID</label>
+                    <input class="form__input" type="text" id="admin-assign-visible-id" autocomplete="off" placeholder="Ej. d2XBK2p6" />
+                    <p class="form__hint">Si no cuentas con el UUID, escribe el ID mostrado al usuario.</p>
+                  </div>
+                  <div class="form__actions">
+                    <button class="btn btn--primary btn--sm" type="submit">Asignar rol docente</button>
+                  </div>
+                </form>
+
+                <div class="admin-panel__card admin-panel__list">
+                  <h3 class="account-card__subtitle">Docentes registrados</h3>
+                  <p class="account-card__hint">Consulta los usuarios con rol docente activo.</p>
+                  <div id="admin-user-list" class="role-panel__list"></div>
+                </div>
+              </div>
+
+              <div class="admin-panel__card admin-panel__list admin-panel__groups">
+                <h3 class="account-card__subtitle">Grupos docentes</h3>
+                <p class="account-card__hint">Resumen de los grupos creados por docentes y su estado actual.</p>
+                <div id="admin-group-list" class="role-panel__list"></div>
+              </div>
+            </div>
+            </section>
+
+            <section id="development-panel" class="account-card account-card--role" hidden>
+            <div class="account-card__header">
+              <div>
+                <p class="account-card__eyebrow">Panel development</p>
+                <h2 class="account-card__title">Herramientas avanzadas</h2>
+                <p class="account-card__subtitle">Gestiona roles administrativos y operaciones de respaldo.</p>
+              </div>
+            </div>
+            <div class="account-card__body">
+              <form id="development-assign-admin-form" class="role-form role-form--inline" novalidate>
+                <div class="form__field">
+                  <label class="form__label" for="development-user-id">ID de usuario (UUID)</label>
+                  <input class="form__input" type="text" id="development-user-id" autocomplete="off" placeholder="UUID del usuario" />
+                </div>
+                <div class="form__field">
+                  <label class="form__label" for="development-visible-id">ID</label>
+                  <input class="form__input" type="text" id="development-visible-id" autocomplete="off" placeholder="ID (opcional)" />
+                </div>
+                <div class="form__field">
+              <label class="form__label" for="development-request-id">ID de solicitud</label>
+                  <input class="form__input" type="text" id="development-request-id" autocomplete="off" placeholder="ID de solicitud (opcional)" />
+                </div>
+                <div class="form__actions">
+                  <button class="btn btn--primary btn--sm" type="submit">Asignar rol admin</button>
+                </div>
+              </form>
+
+              <div class="role-panel__section">
+                <h3 class="account-card__subtitle">Administradores activos</h3>
+                <p class="role-panel__hint">Retira el rol cuando un usuario ya no necesite privilegios elevados. Siempre debe permanecer al menos una cuenta administradora.</p>
+                <div id="development-admin-empty" class="role-panel__empty" hidden>No hay usuarios con rol administrador.</div>
+                <ul id="development-admin-list" class="role-panel__list role-panel__list--compact" role="list"></ul>
+              </div>
+
+                <div class="role-panel__actions">
+                <div class="role-panel__cluster">
+                  <h3 class="role-panel__subtitle">Crear respaldo</h3>
+                  <p class="role-panel__hint">Genera un nuevo backup de manera inmediata para resguardar los datos actuales.</p>
+                  <p class="role-panel__meta" id="development-backup-status">Último backup: sin registros</p>
+                  <p class="role-panel__meta role-panel__meta--muted" id="development-backup-meta"></p>
+                  <button id="development-create-backup" class="btn btn--primary btn--sm" type="button">Ejecutar backup</button>
+                </div>
+                <div class="role-panel__cluster">
+                  <h3 class="role-panel__subtitle">Restaurar respaldo</h3>
+                  <p class="role-panel__hint">Ingresa el nombre exacto del archivo que deseas restaurar desde el servidor.</p>
+                  <form id="development-restore-form" class="role-form" novalidate>
+                    <div class="form__field">
+                      <label class="form__label" for="development-backup-name">Nombre del backup</label>
+                      <input class="form__input" type="text" id="development-backup-name" autocomplete="off" placeholder="Ej. backup-2025-10-30" />
+                    </div>
+                    <div class="form__actions">
+                      <button class="btn btn--ghost btn--sm" type="submit">Restaurar backup</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <div class="role-panel__section">
+                <h3 class="account-card__subtitle">Solicitudes de roles</h3>
+                <div id="development-role-requests" class="role-panel__list"></div>
+              </div>
+
+              <div class="role-panel__section">
+                <h3 class="account-card__subtitle">Eventos críticos recientes</h3>
+                <p class="role-panel__hint">Seguimiento de inicios de sesión, bloqueos y cambios de roles sensibles.</p>
+                <ul id="development-ops-events" class="ops-events" role="list" aria-live="polite" aria-busy="false"></ul>
+                <p id="development-ops-events-empty" class="role-panel__empty" hidden>No hay eventos recientes.</p>
+                <div id="development-ops-pagination" class="ops-events__pagination" hidden>
+                  <button id="development-ops-prev" class="btn btn--ghost btn--sm" type="button">Anterior</button>
+                  <span id="development-ops-page-info" class="ops-events__page-info">Página 1 de 1</span>
+                  <button id="development-ops-next" class="btn btn--ghost btn--sm" type="button">Siguiente</button>
+                </div>
+              </div>
+            </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <section id="account-guest" class="account-guest" hidden>
+        <div class="account-guest__card" role="dialog" aria-modal="true" aria-labelledby="account-guest-title">
+          <h2 id="account-guest-title">Inicia sesión para ver tu cuenta</h2>
+          <p>Para proteger tu información personal necesitas autenticarte. Si prefieres, puedes volver al inicio.</p>
+          <div class="account-guest__actions">
+            <a class="btn btn--primary" href="/login" data-auth-link="login">Iniciar sesión</a>
+            <a href="/" class="btn btn--ghost">Volver al inicio</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="dashboard-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dashboard-modal-title" hidden>
+      <div class="modal__overlay" data-modal-close aria-hidden="true"></div>
+      <div class="modal__dialog" role="document">
+        <div class="modal__header">
+          <h2 id="dashboard-modal-title" class="modal__title">Personalizar panel</h2>
+          <button class="modal__close" type="button" data-modal-close aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p class="modal__description">Activa o desactiva los widgets que quieres ver y ajusta el orden con los controles disponibles.</p>
+          <div id="dashboard-widgets-list" class="dashboard-widgets" role="listbox" aria-label="Widgets disponibles"></div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--ghost" type="button" data-dashboard-cancel>Cancelar</button>
+          <button class="btn btn--primary" type="button" id="dashboard-save">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="development-remove-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="development-remove-title" hidden>
+      <div class="modal__overlay" data-modal-close aria-hidden="true"></div>
+      <div class="modal__dialog" role="document">
+        <div class="modal__header">
+          <h2 id="development-remove-title" class="modal__title">Quitar rol administrador</h2>
+          <button class="modal__close" type="button" data-modal-close aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p id="development-remove-message">Confirma que deseas quitar el rol administrador del usuario seleccionado.</p>
+          <div class="modal__alert" role="alert">Esta acción es inmediata y el usuario perderá acceso a todas las herramientas de administración.</div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--ghost" type="button" data-development-remove-cancel>Cancelar</button>
+          <button class="btn btn--danger" type="button" id="development-remove-confirm">Quitar rol</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+    <noscript>
+      <div class="noscript">Para utilizar EcuPlot necesitas habilitar JavaScript. Actívalo en tu navegador y recarga la página.</div>
+    </noscript>
+
+    <script src="/static/app.js" type="module" defer></script>
+    <script src="/static/account-page.js" type="module" defer></script>
+  </body>
+</html>

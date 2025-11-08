@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EcuPlot</title>
+    <meta name="description" content="EcuPlot es una graficadora matemática en la web: ingresa funciones, previsualiza en tiempo real y exporta imágenes. Rápida, educativa y accesible." />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="/" />
+    <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" />
+    <link rel="icon" href="/static/icons/favicon-16.png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/static/manifest.webmanifest" />
+    <link rel="mask-icon" href="/static/icons/safari-pinned-tab.svg" color="#0f172a" />
+    <meta name="msapplication-TileColor" content="#0f172a" />
+    <script>
+      (function () {
+        var key = 'ecup-theme';
+        var pref = 'system';
+        try {
+          pref = localStorage.getItem(key) || 'system';
+        } catch (err) {}
+        var isDark = false;
+        if (pref === 'dark') {
+          isDark = true;
+        } else if (pref === 'system') {
+          try {
+            var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+            isDark = !!(mq && mq.matches);
+          } catch (err2) {}
+        }
+        var resolved = isDark ? 'dark' : 'light';
+        var root = document.documentElement;
+        root.classList.add('theme-' + resolved);
+        root.dataset.theme = resolved;
+        root.dataset.themePreference = pref;
+      })();
+    </script>
+  <link rel="stylesheet" href="/static/base.css" />
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/pages.css" />
+  </head>
+  <body class="page page--landing">
+    <a class="skip-link" href="#app">Saltar al contenido principal</a>
+
+    <header id="site-header" class="header" role="banner" aria-label="Cabecera del sitio">
+      <div class="header__inner">
+        <div class="header__brand">
+          <a href="#hero" class="header__logo" aria-label="Ir al inicio">
+            <img
+              src="/static/images/logo.jpg"
+              alt="EcuPlot logo"
+              class="header__logo-img img-responsive"
+              decoding="async"
+            />
+            <span class="header__logo-text">EcuPlot</span>
+          </a>
+        </div>
+
+        <nav id="primary-nav" class="nav header__nav" aria-label="Navegación principal">
+          <ul class="nav__list" role="list">
+            <li class="nav__item"><a class="nav__link" href="#hero" aria-current="page">Inicio</a></li>
+            <li class="nav__item"><a class="nav__link" href="#about">Acerca de</a></li>
+            <li class="nav__item"><a class="nav__link" href="#learn" data-learn-alias="como-usar">Cómo usar</a></li>
+            <li class="nav__item"><a class="nav__link" href="/graph">Graficadora</a></li>
+            <li class="nav__item"><a class="nav__link" href="#contact">Contacto</a></li>
+          </ul>
+        </nav>
+
+        <div class="header__actions">
+          <a
+            class="btn btn--ghost header__btn btn--has-icon btn--icon-only"
+            href="/login"
+            data-auth-link="login"
+            aria-label="Iniciar sesión"
+          >
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/loginclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/loginoscuro.png" alt="" decoding="async" />
+            </span>
+          </a>
+          <a
+            class="btn btn--primary header__btn btn--has-icon btn--icon-only"
+            href="/signup"
+            data-auth-link="signup"
+            aria-label="Crear cuenta"
+          >
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/signinclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/signinoscuro.png" alt="" decoding="async" />
+            </span>
+          </a>
+          <button
+            id="btn-logout"
+            class="btn header__btn header__btn--logout btn--has-icon btn--icon-only"
+            type="button"
+            aria-label="Cerrar sesión"
+            style="display:none"
+          >
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/logoutclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/logoutoscuro.png" alt="" decoding="async" />
+            </span>
+          </button>
+          <div class="theme-switcher" data-theme-switcher>
+            <button
+              class="btn btn--icon header__btn"
+              type="button"
+              data-theme-menu-trigger
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="theme-menu-header"
+              aria-label="Cambiar tema"
+            >
+              <img class="icon icon--theme icon--theme-light" src="/static/images/luna.png" alt="" decoding="async" />
+              <img class="icon icon--theme icon--theme-dark" src="/static/images/sol.png" alt="" decoding="async" />
+            </button>
+            <div id="theme-menu-header" class="theme-menu" role="menu" hidden data-theme-menu>
+              <button type="button" class="theme-menu__option" data-theme-option="light" role="menuitemradio" aria-checked="false">Claro</button>
+              <button type="button" class="theme-menu__option" data-theme-option="dark" role="menuitemradio" aria-checked="false">Oscuro</button>
+              <button type="button" class="theme-menu__option" data-theme-option="system" role="menuitemradio" aria-checked="false">Sistema</button>
+            </div>
+          </div>
+          <button
+            class="btn btn--icon header__btn header__btn--menu"
+            type="button"
+            aria-label="Abrir menú"
+            aria-controls="mobile-drawer"
+            aria-expanded="false"
+            data-drawer-toggle
+          >
+            <img class="icon icon--menu icon--menu-light" src="/static/images/hamburgblack.png" alt="" decoding="async" />
+            <img class="icon icon--menu icon--menu-dark" src="/static/images/hamburgwhite.png" alt="" decoding="async" />
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Drawer móvil -->
+    <aside id="mobile-drawer" class="drawer" aria-hidden="true" aria-labelledby="mobile-drawer-title" role="dialog">
+      <div class="drawer__overlay" data-drawer-toggle tabindex="-1" aria-hidden="true"></div>
+      <div class="drawer__panel" role="document">
+        <div class="drawer__header">
+          <h2 id="mobile-drawer-title" class="drawer__title">Menú</h2>
+          <button class="drawer__close btn btn--icon" type="button" data-drawer-toggle aria-label="Cerrar menú">
+            <span class="btn__icon" aria-hidden="true">
+              <img class="btn__icon-img btn__icon-img--light" src="/static/images/closeclaro.png" alt="" decoding="async" />
+              <img class="btn__icon-img btn__icon-img--dark" src="/static/images/closeoscuro.png" alt="" decoding="async" />
+            </span>
+          </button>
+        </div>
+        <nav class="drawer__nav" aria-label="Navegación móvil">
+          <ul class="drawer__list" role="list">
+            <li class="drawer__item"><a class="drawer__link" href="#hero">Inicio</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="#about">Acerca de</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="#learn" data-learn-alias="como-usar">Cómo usar</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="/graph">Graficadora</a></li>
+            <li class="drawer__item"><a class="drawer__link" href="#contact">Contacto</a></li>
+          </ul>
+          <div class="drawer__actions">
+            <a class="btn btn--ghost drawer__btn" href="/login" data-auth-link="login">Iniciar sesión</a>
+            <a class="btn btn--primary drawer__btn" href="/signup" data-auth-link="signup">Crear cuenta</a>
+          </div>
+        </nav>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main id="app" class="main" role="main">
+      <!-- HERO -->
+      <section id="hero" class="hero" aria-labelledby="hero-title">
+        <div class="hero__inner container">
+          <h1 id="hero-title" class="hero__title">EcuPlot</h1>
+          <p class="hero__subtitle">Graficadora matemática en la web: funciones, vista previa instantánea y exportación.</p>
+
+          <div class="hero__ctas">
+            <a id="cta-graficar" class="btn btn--primary hero__cta" href="/graph" role="button">Graficar ahora</a>
+            <a class="btn btn--ghost hero__cta" href="#learn" role="button">Ver más ejemplos</a>
+          </div>
+          <p class="status hero__status" data-status hidden aria-hidden="true">
+            <span class="status__label" data-status-label>Verificando estado del backend…</span>
+            <span class="status__badges" data-status-badges hidden></span>
+          </p>
+        </div>
+      </section>
+
+      <!-- FEATURES -->
+      <section id="features" class="features" aria-labelledby="features-title">
+        <div class="features__inner container">
+          <h2 id="features-title" class="section-title">Características</h2>
+          <ul class="features__list" role="list">
+            <li class="features__item card">
+              <h3 class="features__item-title">Múltiples funciones</h3>
+              <p class="features__item-text">Lineales, cuadráticas, trigonométricas, exponenciales y más, en una sola vista.</p>
+            </li>
+            <li class="features__item card">
+              <h3 class="features__item-title">Historial inteligente</h3>
+              <p class="features__item-text">Recupera y edita funciones recientes para iterar más rápido.</p>
+            </li>
+            <li class="features__item card">
+              <h3 class="features__item-title">Exportación de imagen</h3>
+              <p class="features__item-text">Descarga tus gráficas en PNG/SVG listo para informes y presentaciones.</p>
+            </li>
+            <li class="features__item card">
+              <h3 class="features__item-title">Atajos de teclado</h3>
+              <p class="features__item-text">Productividad sin ratón: inserta funciones, alterna cuadrícula y exporta.</p>
+            </li>
+            <li class="features__item card">
+              <h3 class="features__item-title">Accesible por diseño</h3>
+              <p class="features__item-text">Etiqueta, contraste y navegación por teclado desde el primer día.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- LEARN -->
+      <div class="learn-aliases" aria-hidden="true">
+        <span id="como-funciona" class="learn-alias" data-learn-alias></span>
+  <span id="como-usar" class="learn-alias" data-learn-alias></span>
+        <span id="how-it-works" class="learn-alias" data-learn-alias></span>
+        <span id="documentacion" class="learn-alias" data-learn-alias></span>
+        <span id="docs" class="learn-alias" data-learn-alias></span>
+      </div>
+      <section id="learn" class="learn" aria-labelledby="learn-title" tabindex="-1">
+        <div class="learn__inner container">
+          <header class="learn__header">
+            <p class="learn__eyebrow">Guías interactivas</p>
+            <h2 id="learn-title" class="section-title">Aprende a usar EcuPlot</h2>
+            <p class="learn__description">
+              Explora ejemplos listos para copiar, descubre funciones disponibles y domina atajos que aceleran tus sesiones de graficación.
+            </p>
+          </header>
+
+          <div class="learn__carousel" role="region" aria-roledescription="carousel" aria-live="polite">
+            <div class="learn__track" data-learn-track tabindex="0">
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Sintaxis básica">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Primeros pasos</p>
+                  <h3 class="learn-card__title">Sintaxis básica</h3>
+                  <p class="learn-card__text">
+                    Escribe ecuaciones completas con la variable <code>x</code> y operadores conocidos. Combina sumas, productos y potencias en una misma función.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = sin(x)">y = sin(x)</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = x^2 + 2x + 1">y = x^2 + 2x + 1</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Constantes útiles">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Constantes</p>
+                  <h3 class="learn-card__title">Constantes útiles</h3>
+                  <p class="learn-card__text">
+                    Usa <code>pi</code> y <code>e</code> sin definirlas. Puedes combinarlas con coeficientes o emplearlas en funciones trigonométricas y exponenciales.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = 2 * pi">y = 2 * pi</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = e^x">y = e^x</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Trigonometría">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Trigonometría</p>
+                  <h3 class="learn-card__title">Funciones trigonométricas</h3>
+                  <p class="learn-card__text">
+                    Trabaja con <code>sin</code>, <code>cos</code> y <code>tan</code>, o crea combinaciones para comparar amplitudes y fases en un mismo plano cartesiano.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = sin(x)">y = sin(x)</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = cos(x)">y = cos(x)</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = sin(x) + cos(x)">y = sin(x) + cos(x)</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Exponenciales y logaritmos">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Crecimiento</p>
+                  <h3 class="learn-card__title">Expo y logaritmos</h3>
+                  <p class="learn-card__text">
+                    Visualiza crecimiento exponencial y logaritmos naturales. Según el motor, también puedes emplear <code>log</code> para base 10.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = e^x">y = e^x</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = ln(x)">y = ln(x)</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Raíces y dominio">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Raíces</p>
+                  <h3 class="learn-card__title">Controla el dominio</h3>
+                  <p class="learn-card__text">
+                    Ajusta raíces cuadradas y recuerda restringir el dominio. Aprovecha notas rápidas para tus estudiantes durante una explicación.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = sqrt(x - 1)">y = sqrt(x - 1)</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="# Dominio recomendado: x >= 1"># Dominio recomendado: x >= 1</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Composición de funciones">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Composición</p>
+                  <h3 class="learn-card__title">Composición de funciones</h3>
+                  <p class="learn-card__text">
+                    Mezcla polinomios y trigonometría para destacar variaciones locales y patrones repetitivos dentro de una misma gráfica.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y = (x - 1)^2 + 3*sin(x)">y = (x - 1)^2 + 3*sin(x)</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Múltiples funciones">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Comparaciones</p>
+                  <h3 class="learn-card__title">Múltiples funciones</h3>
+                  <p class="learn-card__text">
+                    Declara varias funciones en paralelo para comparar comportamientos. Asigna identificadores secuenciales como <code>y1</code> y <code>y2</code>.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y1 = sin(x)">y1 = sin(x)</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y2 = cos(x)">y2 = cos(x)</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="y3 = tan(x/2)">y3 = tan(x/2)</button></li>
+                </ul>
+              </article>
+
+              <article class="learn-card card" data-learn-slide role="group" aria-roledescription="slide" aria-label="Atajos y exportación">
+                <div class="learn-card__body">
+                  <p class="learn-card__eyebrow">Productividad</p>
+                  <h3 class="learn-card__title">Atajos y exportación</h3>
+                  <p class="learn-card__text">
+                    Acelera tu flujo con atajos de teclado y comparte resultados limpios exportando en PNG o SVG directamente desde la app.
+                  </p>
+                </div>
+                <ul class="learn-card__chips" role="list">
+                  <li role="listitem"><button type="button" class="chip" data-snippet="Ctrl + Enter: graficar">Ctrl + Enter: graficar</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="G: mostrar cuadrícula">G: mostrar cuadrícula</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="Ctrl + Shift + E: exportar PNG">Ctrl + Shift + E: exportar PNG</button></li>
+                  <li role="listitem"><button type="button" class="chip" data-snippet="Ctrl + Shift + S: exportar SVG">Ctrl + Shift + S: exportar SVG</button></li>
+                </ul>
+              </article>
+            </div>
+
+            <div class="learn__controls">
+              <button type="button" class="learn__control btn btn--ghost btn--sm" data-learn-prev aria-label="Ver tarjetas anteriores">
+                <span aria-hidden="true">Anterior</span>
+              </button>
+              <button type="button" class="learn__control btn btn--ghost btn--sm" data-learn-next aria-label="Ver tarjetas siguientes">
+                <span aria-hidden="true">Siguiente</span>
+              </button>
+            </div>
+
+            <p class="learn__hint">
+              Desliza con el mouse o el dedo. Usa <kbd>Shift</kbd> + rueda o las flechas del teclado para navegar.
+            </p>
+
+            <div class="learn__status sr-only" aria-live="polite" data-learn-status></div>
+          </div>
+
+          <div class="learn__footer">
+            <a class="btn btn--ghost" href="#documentacion" data-learn-more>Ver más ejemplos</a>
+            <a class="btn btn--primary" href="/graph">Abrir graficadora</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ABOUT -->
+      <section id="about" class="about" aria-labelledby="about-title">
+        <div class="about__inner container">
+          <h2 id="about-title" class="section-title">Acerca de EcuPlot</h2>
+          <p class="about__text">
+            EcuPlot nació como un proyecto educativo con el propósito de facilitar el aprendizaje de matemáticas mediante visualizaciones claras,
+            accesibles y rápidas en el navegador. Está pensado para estudiantes, docentes y profesionales que necesitan comunicar ideas con precisión.
+          </p>
+        </div>
+      </section>
+
+      <!-- CONTACT -->
+      <section id="contact" class="contact" aria-labelledby="contact-title">
+        <div class="contact__inner container">
+          <h2 id="contact-title" class="section-title">Contacto</h2>
+
+          <form
+            id="contact-form"
+            class="form contact__form"
+            action="/contact"
+            method="post"
+            novalidate
+            data-form-validate
+            aria-describedby="contact-form-errors"
+          >
+            <div id="contact-form-errors" class="form__errors" aria-live="polite" role="status">
+              <ul class="form__errors-list" role="list" data-global-error-messages></ul>
+            </div>
+
+            <div class="form__field">
+              <label class="form__label" for="contact-name">Nombre</label>
+              <input class="form__input" type="text" id="contact-name" name="name" autocomplete="name" inputmode="text" aria-describedby="error-contact-name" required />
+              <p id="error-contact-name" class="form__error" aria-hidden="true"></p>
+            </div>
+
+            <div class="form__field">
+              <label class="form__label" for="contact-email">Correo electrónico</label>
+              <input class="form__input" type="email" id="contact-email" name="email" autocomplete="email" inputmode="email" aria-describedby="error-contact-email" required />
+              <p id="error-contact-email" class="form__error" aria-hidden="true"></p>
+            </div>
+
+            <div class="form__field">
+              <label class="form__label" for="contact-message">Mensaje</label>
+              <textarea class="form__textarea" id="contact-message" name="message" rows="6" aria-describedby="error-contact-message" required></textarea>
+              <p id="error-contact-message" class="form__error" aria-hidden="true"></p>
+            </div>
+
+            <div class="form__actions">
+              <button class="btn btn--primary" type="submit">Enviar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- Pie de página -->
+    <footer id="site-footer" class="footer" role="contentinfo">
+      <div class="footer__inner">
+        <p class="footer__copy">© <span data-year></span> EcuPlot. Todos los derechos reservados.</p>
+        <nav class="footer__nav" aria-label="Enlaces secundarios">
+          <ul class="footer__list" role="list">
+            <li class="footer__item"><a class="footer__link" href="/terminos">Términos</a></li>
+            <li class="footer__item"><a class="footer__link" href="/privacidad">Privacidad</a></li>
+          </ul>
+        </nav>
+        <p class="footer__credit">Un proyecto educativo de código limpio y accesible.</p>
+      </div>
+    </footer>
+
+    <!-- Toasts -->
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+    <noscript>
+      <div class="noscript">Para utilizar EcuPlot necesitas habilitar JavaScript. Actívalo en tu navegador y recarga la página.</div>
+    </noscript>
+
+    <!-- app.js general -->
+    <script src="/static/app.js" type="module" defer></script>
+
+  </body>
+</html>
