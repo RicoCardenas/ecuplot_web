@@ -8,16 +8,14 @@ import secrets
 import struct
 import time
 from datetime import datetime, timedelta, timezone
-from urllib import request as urllib_request, error as urllib_error
 from urllib.parse import quote
-from functools import lru_cache
 
 from flask import current_app, jsonify, request, redirect, url_for, g
 from flask_mail import Message
 from sqlalchemy import cast, String, delete, func
 
 from . import api
-from ..extensions import db, bcrypt, mail
+from ..extensions import db, bcrypt, mail, limiter
 from ..models import (
     Users,
     Roles,
@@ -29,10 +27,16 @@ from ..models import (
 from ..auth import require_session
 from ..notifications import create_notification
 from ..event_stream import events as event_bus
-from ..services.passwords import password_strength_error, password_is_compromised
+from ..services.passwords import password_strength_error, password_is_compromised, hibp_fetch_range
 from ..services.validate import normalize_email
 from ..services.mail import resolve_mail_sender
 from ..services.tokens import issue_user_token as _svc_issue_user_token
+from ..services.audit import (
+    serialize_audit_entry as _serialize_audit_entry,
+    queue_ops_event as _queue_ops_event,
+    record_audit as _record_audit_base,
+)
+from ..services.request_utils import get_client_ip
 
 
 MAX_FAILED_LOGIN_ATTEMPTS = 3
@@ -42,8 +46,6 @@ PASSWORD_POLICY_MESSAGE = (
     "La contraseña debe tener al menos 8 caracteres, con una letra mayúscula, "
     "una letra minúscula, un número y un carácter especial."
 )
-HIBP_API_RANGE_URL = "https://api.pwnedpasswords.com/range/"
-HIBP_USER_AGENT = "EcuPlotPasswordChecker/1.0"
 MAIL_SENDER_MISSING_ERROR = "Servicio de correo no disponible. Intenta más tarde."
 
 TOTP_ISSUER = 'EcuPlot'
@@ -63,65 +65,23 @@ OPS_AUDIT_ACTIONS = {
 }
 
 
-def _log_warning(message: str, *args) -> None:
-    """Registra un warning en el logger de la aplicación."""
+def _log_warning(message: str, *args, **kwargs) -> None:
+    """
+    Registra un warning en el logger de la aplicación.
+    
+    Supports both formatted strings and extra contextual fields via kwargs.
+    """
     try:
-        current_app.logger.warning(message, *args)
+        # Extract 'extra' dict if provided for structured logging
+        extra = kwargs.pop('extra', {})
+        current_app.logger.warning(message, *args, extra=extra, **kwargs)
     except Exception:
         pass
 
 
-@lru_cache(maxsize=512)
-def _hibp_fetch_range(prefix: str) -> dict[str, int]:
-    """Recupera el mapa de sufijos SHA1 -> número de apariciones desde HIBP."""
-    prefix = (prefix or "").strip().upper()
-    if len(prefix) != 5 or not prefix.isalnum():
-        return {}
-
-    url = f"{HIBP_API_RANGE_URL}{prefix}"
-    request_obj = urllib_request.Request(url, headers={"User-Agent": HIBP_USER_AGENT})
-
-    try:
-        with urllib_request.urlopen(request_obj, timeout=3.0) as response:
-            if getattr(response, "status", 200) >= 400:
-                _log_warning("HIBP devolvió estado inesperado (%s)", getattr(response, "status", "unknown"))
-                return {}
-            payload = response.read().decode("utf-8", errors="ignore")
-    except (urllib_error.URLError, urllib_error.HTTPError) as exc:
-        _log_warning("No se pudo consultar HIBP: %s", exc)
-        return {}
-    except Exception as exc:  # pragma: no cover - ruta defensiva
-        _log_warning("Fallo inesperado consultando HIBP: %s", exc)
-        return {}
-
-    results: dict[str, int] = {}
-    for line in payload.splitlines():
-        if not line or ":" not in line:
-            continue
-        suffix, count = line.split(":", 1)
-        suffix = suffix.strip().upper()
-        if len(suffix) != 35:
-            continue
-        try:
-            results[suffix] = int(count.strip())
-        except ValueError:
-            continue
-    return results
-
-
-def _password_is_compromised(password: str, minimum_count: int) -> bool:
-    """Verifica si una contraseña aparece en bases de datos filtradas (HIBP)."""
-    if not password:
-        return False
-    digest = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
-    prefix, suffix = digest[:5], digest[5:]
-    matches = _hibp_fetch_range(prefix)
-    count = matches.get(suffix, 0)
-    return count >= max(1, minimum_count)
-
-
 _password_strength_error = password_strength_error
 _password_is_compromised = password_is_compromised
+_hibp_fetch_range = hibp_fetch_range
 _normalize_email = normalize_email
 _resolve_mail_sender = resolve_mail_sender
 _issue_user_token = _svc_issue_user_token
@@ -158,6 +118,12 @@ def _send_lockout_notification(user, unlock_link):
             "No se pudo enviar correo de bloqueo a %s: %s",
             user.email,
             exc,
+            extra={
+                "event": "auth.account_lock_email_failed",
+                "user_id": user.id,
+                "user_email": user.email,
+                "error_type": type(exc).__name__,
+            },
         )
 
 
@@ -191,6 +157,12 @@ def _send_password_reset_email(user, reset_link):
             "No se pudo enviar correo de restablecimiento a %s: %s",
             user.email,
             exc,
+            extra={
+                "event": "auth.password_reset_email_failed",
+                "user_id": user.id,
+                "user_email": user.email,
+                "error_type": type(exc).__name__,
+            },
         )
 
 
@@ -260,83 +232,15 @@ def _verify_2fa_or_backup(user, code):
     return False, None
 
 
-def _serialize_audit_entry(entry):
-    """Serializa una entrada de auditoría para eventos."""
-    if not entry:
-        return {}
-
-    user_payload = None
-    if getattr(entry, "user", None) is not None:
-        user_payload = {
-            "id": str(entry.user.id),
-            "email": entry.user.email,
-            "name": entry.user.name,
-        }
-    elif entry.user_id:
-        actor = db.session.get(Users, entry.user_id)
-        if actor:
-            user_payload = {
-                "id": str(actor.id),
-                "email": actor.email,
-                "name": actor.name,
-            }
-
-    target_payload = None
-    if entry.target_entity_type or entry.target_entity_id:
-        target_payload = {
-            "type": entry.target_entity_type,
-            "id": str(entry.target_entity_id) if entry.target_entity_id else None,
-        }
-
-    return {
-        "id": str(entry.id) if entry.id is not None else None,
-        "action": entry.action,
-        "created_at": entry.created_at.isoformat() if entry.created_at else None,
-        "ip_address": entry.ip_address,
-        "details": entry.details or {},
-        "user": user_payload,
-        "target": target_payload,
-    }
-
-
-def _queue_ops_event(payload):
-    """Encola un evento de operaciones para notificar."""
-    if not payload:
-        return
-    events = getattr(g, "_ops_audit_events", None)
-    if events is None:
-        events = []
-        g._ops_audit_events = events
-    events.append(payload)
-
-
 def _record_audit(action, *, target_entity_type=None, target_entity_id=None, details=None):
     """Registra una entrada de auditoría y opcionalmente la encola como evento."""
-    try:
-        actor = getattr(getattr(g, "current_user", None), "id", None)
-        payload = dict(details or {})
-        entry = AuditLog(
-            user_id=actor,
-            action=action,
-            target_entity_type=target_entity_type,
-            target_entity_id=target_entity_id,
-            details=payload,
-            ip_address=request.headers.get('X-Forwarded-For') or request.remote_addr,
-        )
-        db.session.add(entry)
-        db.session.flush([entry])
-        try:
-            db.session.refresh(entry)
-        except Exception:
-            pass
-        if action in OPS_AUDIT_ACTIONS:
-            serialized = _serialize_audit_entry(entry)
-            if serialized:
-                _queue_ops_event(serialized)
-        return entry
-    except Exception as exc:
-        current_app.logger.warning("No se pudo registrar auditoría (%s): %s", action, exc)
-        return None
+    return _record_audit_base(
+        action,
+        target_entity_type=target_entity_type,
+        target_entity_id=target_entity_id,
+        details=details,
+        audit_actions=OPS_AUDIT_ACTIONS,
+    )
 
 
 # ============================================================================
@@ -347,6 +251,7 @@ def _record_audit(action, *, target_entity_type=None, target_entity_id=None, det
 
 
 @api.post("/register")
+@limiter.limit(lambda: current_app.config.get("RATELIMIT_REGISTER", "5 per hour"))
 def register_user():
     """Registro de nuevo usuario (envía correo de verificación)."""
     data = request.get_json(silent=True)
@@ -470,6 +375,7 @@ El equipo de EcuPlot
 
 
 @api.get("/verify-email")
+@limiter.limit(lambda: current_app.config.get("RATELIMIT_EMAIL_VERIFY", "5 per hour"))
 def verify_email():
     """Verificación de correo por token."""
     token_value = request.args.get('token')
@@ -521,9 +427,14 @@ def verify_email():
 
 
 @api.post("/login")
+@limiter.limit(lambda: current_app.config.get("RATELIMIT_LOGIN", "10 per 5 minutes"))
 def login_user():
     """Inicio de sesión: devuelve session_token y crea registro en user_sessions."""
-    data = request.get_json()
+    try:
+        data = request.get_json()
+    except Exception:
+        return jsonify(error="Datos JSON inválidos o Content-Type incorrecto."), 400
+    
     if not data:
         return jsonify(error="No se proporcionaron datos JSON."), 400
 
@@ -607,7 +518,16 @@ def login_user():
             db.session.commit()
         except Exception as exc:
             db.session.rollback()
-            current_app.logger.error("No se pudo registrar intento de login fallido: %s", exc)
+            current_app.logger.error(
+                "No se pudo registrar intento de login fallido: %s", exc,
+                extra={
+                    "event": "auth.login.failed_db_error",
+                    "user_id": user.id,
+                    "email": email,
+                    "failed_attempts": failed_attempts,
+                    "error_type": type(exc).__name__,
+                }
+            )
             return jsonify(error="Error interno al procesar la solicitud."), 500
 
         if locked and unlock_token:
@@ -651,6 +571,7 @@ def login_user():
 
     session_token = secrets.token_urlsafe(64)
     expires = datetime.now(timezone.utc) + timedelta(days=7)
+    client_ip = get_client_ip(request)
 
     user.failed_login_attempts = 0
     user.locked_until = None
@@ -659,7 +580,7 @@ def login_user():
         session_token=session_token,
         user_id=user.id,
         expires_at=expires,
-        ip_address=request.remote_addr,
+        ip_address=client_ip,
         user_agent=request.user_agent.string
     )
 
@@ -668,14 +589,18 @@ def login_user():
         db.session.flush([new_session])
         session_identifier = getattr(new_session, "session_token", None)
         session_fingerprint = None
+        session_hash = None
         if session_identifier and len(session_identifier) >= 8:
             session_fingerprint = f"{session_identifier[:4]}…{session_identifier[-4:]}"
+            session_hash = hashlib.sha256(session_identifier.encode("utf-8")).hexdigest()
+
         audit_details = {
-            "session_id": session_identifier,
             "used_backup_code": bool(backup_entry),
         }
         if session_fingerprint:
             audit_details["session_id_hint"] = session_fingerprint
+        if session_hash:
+            audit_details["session_id_hash"] = session_hash[:12]
 
         _record_audit(
             "auth.login.succeeded",
@@ -684,7 +609,7 @@ def login_user():
             details=audit_details,
         )
         payload = {
-            "ip": request.remote_addr,
+            "ip": client_ip,
             "user_agent": request.user_agent.string if request.user_agent else None,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -695,7 +620,7 @@ def login_user():
             user.id,
             category="security",
             title="Nuevo inicio de sesión",
-            body=f"Se inició sesión desde {request.remote_addr or 'origen desconocido'}.",
+            body=f"Se inició sesión desde {client_ip or 'origen desconocido'}.",
             payload=payload,
         )
         db.session.commit()
@@ -730,6 +655,7 @@ def login_user():
 
 
 @api.get("/unlock-account")
+@limiter.limit(lambda: current_app.config.get("RATELIMIT_UNLOCK_ACCOUNT", "3 per hour"))
 def unlock_account():
     """Desbloquea una cuenta usando un token de desbloqueo."""
     token_value = request.args.get('token', '').strip()
@@ -777,6 +703,7 @@ def unlock_account():
 
 
 @api.post("/password/forgot")
+@limiter.limit(lambda: current_app.config.get("RATELIMIT_PASSWORD_RESET", "3 per hour"))
 def request_password_reset():
     """Solicita un restablecimiento de contraseña."""
     data = request.get_json(silent=True) or {}
@@ -812,6 +739,7 @@ def request_password_reset():
 
 
 @api.post("/password/reset")
+@limiter.limit(lambda: current_app.config.get("RATELIMIT_PASSWORD_RESET", "3 per hour"))
 def reset_password():
     """Restablece la contraseña usando un token válido."""
     data = request.get_json(silent=True) or {}

@@ -89,7 +89,19 @@ def init_app_config(app) -> None:
         app.config["SECRET_KEY"] = secret_key
 
     db_uri = app.config.get("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
-    if not db_uri:
+    
+    # PROTECCIÓN CRÍTICA: En tests, NUNCA usar PostgreSQL de producción
+    if runtime_env == "test" or app.config.get("TESTING"):
+        # Si estamos en tests pero db_uri apunta a PostgreSQL, forzar SQLite
+        if db_uri and db_uri.startswith("postgresql"):
+            app.logger.warning(
+                f"⚠️  TESTS intentando usar PostgreSQL - FORZANDO SQLite para proteger producción"
+            )
+            db_uri = "sqlite:///:memory:"
+        # Si no hay db_uri en tests, usar memoria
+        elif not db_uri:
+            db_uri = "sqlite:///:memory:"
+    elif not db_uri:
         db_uri = _fallback_database_uri(runtime_env)
 
     if not db_uri:
@@ -186,3 +198,46 @@ class Config:
         _hibp_threshold = 1
     HIBP_PASSWORD_MIN_COUNT = max(1, _hibp_threshold)
     del _hibp_threshold
+
+    # --- Rate Limiting Configuration ---
+    RATELIMIT_STORAGE_URI = os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
+    # Per-endpoint rate limits (configurable via environment)
+    RATELIMIT_LOGIN = os.getenv('RATELIMIT_LOGIN', '10 per 5 minutes')
+    RATELIMIT_REGISTER = os.getenv('RATELIMIT_REGISTER', '5 per hour')
+    RATELIMIT_PASSWORD_RESET = os.getenv('RATELIMIT_PASSWORD_RESET', '3 per hour')
+    RATELIMIT_EMAIL_VERIFY = os.getenv('RATELIMIT_EMAIL_VERIFY', '5 per hour')
+    RATELIMIT_CONTACT = os.getenv('RATELIMIT_CONTACT', '5 per hour')
+    RATELIMIT_UNLOCK_ACCOUNT = os.getenv('RATELIMIT_UNLOCK_ACCOUNT', '3 per hour')
+
+    # --- Logging Configuration ---
+    LOG_LEVEL = os.getenv('LOG_LEVEL', None)  # None = auto-detect based on APP_ENV
+    LOG_JSON_ENABLED = None  # None = auto-detect (True for production, False otherwise)
+    _log_json_env = os.getenv('LOG_JSON_ENABLED', '').strip().lower()
+    if _log_json_env in {'1', 'true', 'yes', 'on'}:
+        LOG_JSON_ENABLED = True
+    elif _log_json_env in {'0', 'false', 'no', 'off'}:
+        LOG_JSON_ENABLED = False
+    del _log_json_env
+
+    # --- Sentry Configuration ---
+    SENTRY_DSN = os.getenv('SENTRY_DSN')
+    SENTRY_ENVIRONMENT = os.getenv('SENTRY_ENVIRONMENT')  # None = auto-detect from APP_ENV
+    
+    # Sentry traces sample rate (0.0 to 1.0)
+    # 1.0 = 100% of transactions, 0.1 = 10% of transactions
+    try:
+        _traces_sample_rate = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1'))
+    except ValueError:
+        _traces_sample_rate = 0.1
+    SENTRY_TRACES_SAMPLE_RATE = max(0.0, min(1.0, _traces_sample_rate))
+    del _traces_sample_rate
+    
+    # Enable/disable Sentry profiling
+    _sentry_profiling = os.getenv('SENTRY_ENABLE_PROFILING', 'false').strip().lower()
+    SENTRY_ENABLE_PROFILING = _sentry_profiling in {'1', 'true', 'yes', 'on'}
+    del _sentry_profiling
+    
+    # Enable Sentry in development (for testing only)
+    _sentry_enable_in_dev = os.getenv('SENTRY_ENABLE_IN_DEV', 'false').strip().lower()
+    SENTRY_ENABLE_IN_DEV = _sentry_enable_in_dev in {'1', 'true', 'yes', 'on'}
+    del _sentry_enable_in_dev
